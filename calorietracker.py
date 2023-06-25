@@ -15,7 +15,7 @@ def login():
     if written_username == username and written_password == password:
         homescreen_function()
     else:
-        messagebox.showwarning(title="Error", message="Incorrect username or password")
+        messagebox.showwarning(title="Error", message="Invalid Username Or Password")
 
 def homescreen_function():
     loginpage.destroy()  # Destroy current window and create a new one
@@ -23,15 +23,8 @@ def homescreen_function():
     homepage.geometry("1280x750")
     homepage.title('Homepage')
 
-    def button_pressed():
-        print("Button pressed")
-
     # Homescreen widgets
-    label = ctk.CTkLabel(master=homepage, text="Home Page", font=('Century Gothic', 60))
-    label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-
-    button = ctk.CTkButton(master=homepage, text="Monkey", command=button_pressed)
-    button.place(relx=0.5, rely=0.7, anchor=tk.CENTER)
+    
 
     homepage.mainloop()
 
