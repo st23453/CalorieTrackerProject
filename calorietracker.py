@@ -19,9 +19,23 @@ def login():
 
 def homescreen_function():
     loginpage.destroy()  # Destroy current window and create a new one
+    
     homepage = ctk.CTk()  # Creating homepage window
-    homepage.geometry("1280x750")
+    homepage.geometry("850x500")
     homepage.title('Homepage')
+    homepage.maxsize(900, 600)
+    homepage.configure(fg_color="#232635")
+
+    #Homepage Frame
+    menu_frame = ctk.CTkFrame(master=homepage, width=200, height=800, border_width=4)
+    menu_frame.pack(side = "right")
+
+    entry_frame = ctk.CTkFrame(master=homepage, width=600, height=200, border_width=4)
+    entry_frame.pack(side = "left")
+
+    info_frame = ctk.CTkFrame(master=homepage, width=600, height=200, border_width=4)
+    info_frame.pack(side = "left", pady = 100)
+
 
     # Homescreen widgets
     
@@ -31,10 +45,10 @@ def homescreen_function():
 def signup_function():
     loginpage.destroy()  # Destroy current window and create a new one
     signup = ctk.CTk()  # Creating signup window
-    signup.geometry("1280x750")
+    signup.geometry("850x500")
     signup.title('Sign Up')
 
-    # Homescreen widgets
+    # Signup widgets
     label = ctk.CTkLabel(master=signup, text="Sign Up Page", font=('Century Gothic', 60))
     label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
