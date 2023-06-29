@@ -6,12 +6,11 @@ ctk.set_appearance_mode("system")  # Set light or dark mode
 ctk.set_default_color_theme("green")  # Set the color theme
 
 username = "monkey"
-password = "lol123"
+password = "banana123"
 
 def login():
     written_username = user_entry.get()
     written_password = password_entry.get()
-
     if written_username == username and written_password == password:
         homescreen_function()
     else:
@@ -34,7 +33,7 @@ def homescreen_function():
     entry_frame.pack(side = "left")
 
     info_frame = ctk.CTkFrame(master=homepage, width=600, height=200, border_width=4)
-    info_frame.pack(side = "left", pady = 100)
+    info_frame.pack(side = "left", pady = 150)
 
 
     # Homescreen widgets
