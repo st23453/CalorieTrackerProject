@@ -40,13 +40,13 @@ def homescreen_function():
 
     #frames inside the main frame 
 
-    user_frame = ctk.CTkFrame(master=menu1_frame, width=200, height=800, corner_radius=20)
+    user_frame = ctk.CTkFrame(master=menu1_frame, width=200, height=800, corner_radius=20,border_width=2)
     user_frame.pack(padx = "10", pady = "20") #top of the page
 
-    entry_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=250, corner_radius=20)
+    entry_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=250, corner_radius=20,border_width=2)
     entry_frame.pack(side= "top", padx = 10, pady = 20) #top of the page
 
-    info_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=200, corner_radius=20)
+    info_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=200, corner_radius=20,border_width=2)
     info_frame.pack(side = "bottom", padx = 10, pady = 20)  #bottom of the page
 
     #buttons inside entry_frame
