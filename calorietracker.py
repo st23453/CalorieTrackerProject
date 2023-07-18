@@ -51,6 +51,12 @@ def homescreen_function():
 
     #buttons inside entry_frame
 
+    food_button = ctk.CTkButton(master= entry_frame)
+    food_button.place(relx=0.5,rely=0.5,anchor="center")
+
+
+
+
     homepage.mainloop()
 
 def signup_function():

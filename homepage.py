@@ -34,6 +34,8 @@ info_frame.pack(side = "bottom", padx = 10, pady = 20)  #bottom of the page
 
 #buttons inside entry_frame
 
+food_button = ctk.CTKButton()
+food_button.place(relyx = 0.25, rely=0.5)
 
 
 homepage.mainloop()
