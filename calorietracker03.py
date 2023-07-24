@@ -25,13 +25,6 @@ conn.commit()
 user_entry = None
 password_entry = None
 
-class FoodPage(ctk.CTkToplevel):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.geometry("400x300")
-        self.label = ctk.CTkLabel(self, text="Food Page")
-        self.label.pack(padx=20, pady=20)
-
 def login():
     global user_entry, password_entry
     written_username = user_entry.get()

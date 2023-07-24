@@ -9,7 +9,7 @@ ctk.set_appearance_mode("system")  # Set light or dark mode
 ctk.set_default_color_theme("green")  # Set the color theme
 
 # Create or connect to the SQLite3 database
-conn = sqlite3.connect('projectcalorietracker.db')
+conn = sqlite3.connect('testdatabase.db')
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY,
@@ -23,7 +23,6 @@ conn.commit()
 
 # Global variable for loginpage
 loginpage = None
-homepage = None
 
 # Global variables for user_entry and password_entry
 user_entry = None
@@ -53,8 +52,8 @@ def login():
 
 
 def homescreen_function():
-    global user_data, homepage
-    loginpage.destroy()  # Destroy current windFow and create a new one
+    global user_data
+    loginpage.destroy()  # Destroy current window and create a new one
     homepage = ctk.CTk()  # Creating homepage window
     homepage.geometry("1280x750")
     homepage.title('Homepage')
@@ -94,23 +93,10 @@ def homescreen_function():
 
     #buttons inside entry_frame
 
-    food_button = ctk.CTkButton(master= entry_frame, text="Food", command=food_function)
+    food_button = ctk.CTkButton(master= entry_frame, text="Food")
     food_button.place(relx=0.2,rely=0.5,anchor="center")
     
     homepage.mainloop()
-
-def food_function():
-    global user_data, homepage
-
-    homepage.destroy()  # Destroy current windFow and create a new one
-
-    foodpage = ctk.CTk()  # Creating homepage window
-    foodpage.geometry("800x450")
-    foodpage.title('Food Page')
-    foodpage.maxsize(900, 600)
-    foodpage.configure(fg_color="#232635")
-
-    foodpage.mainloop()
 
 
 def signup_function():
@@ -169,7 +155,7 @@ def signup_function():
     weight_goal_combobox.place(relx=0.6, rely=0.7, anchor=tk.CENTER)
 
     def save_signup():
-        
+       
         # Get the input values from the entries
         username = username_entry.get()
         password = password_entry.get()
@@ -201,27 +187,18 @@ def signup_function():
             messagebox.showwarning("Error", "Please select a weight goal.")
             return
 
-        # Check if the username already exists in the database
-        cursor.execute("SELECT * FROM users WHERE username=?", (username,))
-        existing_user = cursor.fetchone()
-        if existing_user:
-            messagebox.showerror("Error", "Username already taken. Please choose a different username.")
-            return
-
         # Calculate the recommended calorie intake based on the weight goal and current weight
         calorie_intake = calculate_calorie_intake(weight_goal, current_weight)
 
         cursor.execute("INSERT INTO users (username, password, age, current_weight, weight_goal) VALUES (?, ?, ?, ?, ?)",
-                    (username, password, age, current_weight, weight_goal))
+                       (username, password, age, current_weight, weight_goal))
         conn.commit()
-        messagebox.showinfo("Success", "Signup successful! You can now log in.")
-        go_back()  # Go back to the login page after successful signup
 
     save_button = ctk.CTkButton(master=signup, text="Sign Up", command=save_signup,
-                                    corner_radius=6, fg_color="#FFC300", font=('Switzer', 12, 'bold'))
+                                corner_radius=6, fg_color="#FFC300", font=('Switzer', 12, 'bold'))
     save_button.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
 
-        
+    
     # Associate validation functions with age and current_weight entries
     age_entry.configure(validate="key", validatecommand=(validate_age_input, "%S"))
     current_weight_entry.configure(validate="key", validatecommand=(validate_current_weight_input, "%S"))

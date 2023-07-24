@@ -9,7 +9,7 @@ ctk.set_appearance_mode("system")  # Set light or dark mode
 ctk.set_default_color_theme("green")  # Set the color theme
 
 # Create or connect to the SQLite3 database
-conn = sqlite3.connect('userinformation.db')
+conn = sqlite3.connect('testdatabase.db')
 cursor = conn.cursor()
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY,
@@ -21,19 +21,24 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                 )''')
 conn.commit()
 
+# Global variable for loginpage
+loginpage = None
+
 # Global variables for user_entry and password_entry
 user_entry = None
 password_entry = None
 
-class FoodPage(ctk.CTkToplevel):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.geometry("400x300")
-        self.label = ctk.CTkLabel(self, text="Food Page")
-        self.label.pack(padx=20, pady=20)
+
+def calculate_calorie_intake(weight_goal, current_weight):
+    if weight_goal == "Lose Weight":
+        return int(current_weight * 30) - 300
+    elif weight_goal == "Gain Weight":
+        return int(current_weight * 30) + 300
+    elif weight_goal == "Maintain Weight":
+        return int(current_weight * 30)
 
 def login():
-    global user_entry, password_entry
+    global user_entry, password_entry, user_data
     written_username = user_entry.get()
     written_password = password_entry.get()
     
@@ -45,13 +50,16 @@ def login():
     else:
         messagebox.showwarning(title="Error", message="Invalid Username Or Password")
 
+
 def homescreen_function():
+    global user_data
     loginpage.destroy()  # Destroy current window and create a new one
     homepage = ctk.CTk()  # Creating homepage window
     homepage.geometry("1280x750")
     homepage.title('Homepage')
     homepage.maxsize(900, 600)
     homepage.configure(fg_color="#232635")
+
 
     #Homepage Frame
 
@@ -73,6 +81,16 @@ def homescreen_function():
     info_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=200, corner_radius=20,border_width=2)
     info_frame.pack(side = "bottom", padx = 10, pady = 20)  #bottom of the page
 
+    # inside info_frame
+    
+    # Display user information in the info_frame
+    info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
+    info_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+    # Calculate the recommended calorie intake based on the user's weight and weight goal
+    calorie_intake = calculate_calorie_intake(user_data[5], user_data[4])
+    info_label.configure(text=f"Base Goal: {calorie_intake} calories")
+
     #buttons inside entry_frame
 
     food_button = ctk.CTkButton(master= entry_frame, text="Food")
@@ -88,9 +106,52 @@ def validate_current_weight_input(char):
     return char.isdigit() or char == "." or char == ""
 
 
+def create_loginpage():
+    global loginpage, user_entry, password_entry
+
+    loginpage = ctk.CTk()  # Creating ctk window
+    loginpage.geometry("750x500")
+    loginpage.title("Login")
+    loginpage.maxsize(900, 600)
+    loginpage.configure(fg_color="#232635")
+
+    # Login Frame
+    frame = ctk.CTkFrame(master=loginpage, corner_radius=20, fg_color="#232635")
+    frame.pack(pady=20, padx=20, fill="both", expand=True)
+
+    # Labels
+    label1 = ctk.CTkLabel(master=frame, text="Welcome To The Best", font=('Switzer', 28, 'bold'))
+    label1.place(relx=0.5, rely=0.26, anchor=tk.CENTER)
+
+    label2 = ctk.CTkLabel(master=frame, text="Calorie Tracker", font=('Switzer', 42, 'bold'))
+    label2.place(relx=0.5, rely=0.34, anchor=tk.CENTER)
+
+    # Info Entry 
+    user_entry = ctk.CTkEntry(master=frame, width=220, height=35, placeholder_text='Username or Email',
+                              font=('Switzer', 16), fg_color="#e0dcdc", text_color="black") 
+    user_entry.place(relx=0.5, rely=0.46, anchor=tk.CENTER) # Username entry
+
+    password_entry = ctk.CTkEntry(master=frame, width=220, height=35, placeholder_text='Password',
+                                  show="●", font=("Switzer", 16), fg_color="#e0dcdc", text_color="black")
+    password_entry.place(relx=0.5, rely=0.54, anchor=tk.CENTER) # Password entry
+
+    # Buttons
+    login_button = ctk.CTkButton(master=frame, width=220, height=35, text="Login", command=login,
+                                 corner_radius=6, fg_color="#FFC300", border_spacing=10,
+                                 font=('Switzer', 18, 'bold'))
+    login_button.place(relx=0.5, rely=0.63, anchor=tk.CENTER) # Login button
+
+    signup_button = ctk.CTkButton(master=frame, width=220, text="Sign Up For Free", command=signup_function,
+                                  corner_radius=6, fg_color="transparent", font=('Switzer', 12, 'bold'))
+    signup_button.place(relx=0.5, rely=0.72, anchor=tk.CENTER) # Signup Button
+
+
+    loginpage.mainloop()
+
 def signup_function():
     global user_entry, password_entry
     loginpage.destroy()  # Destroy current window and create a new one
+    
     signup = ctk.CTk()  # Creating signup window
     signup.geometry("850x500")
     signup.title('Sign Up')
@@ -156,14 +217,18 @@ def signup_function():
         except ValueError:
             messagebox.showerror("Error", "Current weight must be a number.")
             return
+        
+        # Check if weight goal is selected
+        if weight_goal == "Select":
+            messagebox.showwarning("Error", "Please select a weight goal.")
+            return
+
+        # Calculate the recommended calorie intake based on the weight goal and current weight
+        calorie_intake = calculate_calorie_intake(weight_goal, current_weight)
 
         cursor.execute("INSERT INTO users (username, password, age, current_weight, weight_goal) VALUES (?, ?, ?, ?, ?)",
                        (username, password, age, current_weight, weight_goal))
         conn.commit()
-
-        # Close the signup window and go back to the login page
-        signup.destroy()
-        create_loginpage()
 
     save_button = ctk.CTkButton(master=signup, text="Sign Up", command=save_signup,
                                 corner_radius=6, fg_color="#FFC300", font=('Switzer', 12, 'bold'))
@@ -174,49 +239,7 @@ def signup_function():
     age_entry.configure(validate="key", validatecommand=(validate_age_input, "%S"))
     current_weight_entry.configure(validate="key", validatecommand=(validate_current_weight_input, "%S"))
 
-
-
     signup.mainloop()
-
-def create_loginpage():
-    global loginpage, user_entry, password_entry
-    loginpage = ctk.CTk()  # Creating ctk window
-    loginpage.geometry("750x500")
-    loginpage.title("Login")
-    loginpage.maxsize(900, 600)
-    loginpage.configure(fg_color="#232635")
-
-    # Login Frame
-    frame = ctk.CTkFrame(master=loginpage, corner_radius=20, fg_color="#232635")
-    frame.pack(pady=20, padx=20, fill="both", expand=True)
-
-    # Labels
-    label1 = ctk.CTkLabel(master=frame, text="Welcome To The Best", font=('Switzer', 28, 'bold'))
-    label1.place(relx=0.5, rely=0.26, anchor=tk.CENTER)
-
-    label2 = ctk.CTkLabel(master=frame, text="Calorie Tracker", font=('Switzer', 42, 'bold'))
-    label2.place(relx=0.5, rely=0.34, anchor=tk.CENTER)
-
-    # Info Entry 
-    user_entry = ctk.CTkEntry(master=frame, width=220, height=35, placeholder_text='Username or Email',
-                              font=('Switzer', 16), fg_color="#e0dcdc", text_color="black") 
-    user_entry.place(relx=0.5, rely=0.46, anchor=tk.CENTER) # Username entry
-
-    password_entry = ctk.CTkEntry(master=frame, width=220, height=35, placeholder_text='Password',
-                                  show="●", font=("Switzer", 16), fg_color="#e0dcdc", text_color="black")
-    password_entry.place(relx=0.5, rely=0.54, anchor=tk.CENTER) # Password entry
-
-    # Buttons
-    login_button = ctk.CTkButton(master=frame, width=220, height=35, text="Login", command=login,
-                                 corner_radius=6, fg_color="#FFC300", border_spacing=10,
-                                 font=('Switzer', 18, 'bold'))
-    login_button.place(relx=0.5, rely=0.63, anchor=tk.CENTER) # Login button
-
-    signup_button = ctk.CTkButton(master=frame, width=220, text="Sign Up For Free", command=signup_function,
-                                  corner_radius=6, fg_color="transparent", font=('Switzer', 12, 'bold'))
-    signup_button.place(relx=0.5, rely=0.72, anchor=tk.CENTER) # Signup Button
- 
-    loginpage.mainloop()
 
 # Create Login page
 create_loginpage()
