@@ -9,10 +9,10 @@ ctk.set_appearance_mode("system")  # Set light or dark mode
 ctk.set_default_color_theme("green")  # Set the color theme
 
 # Create or connect to the SQLite3 database
-conn = sqlite3.connect('testdatabase.db')
-
-# Create a table for username and password and other info
-cursor = conn.cursor()
+with sqlite3.connect('testdatabase.db') as conn:
+    cursor = conn.cursor()
+    
+# Create the 'users' table if it doesn't exist
 cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY,
                     username TEXT NOT NULL UNIQUE,
@@ -23,15 +23,18 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                 )''')
 conn.commit()
 
-# Create a new table to store food entries
+# Create the 'food_entries' table if it doesn't exist
 cursor.execute('''CREATE TABLE IF NOT EXISTS food_entries (
                     id INTEGER PRIMARY KEY,
                     user_id INTEGER NOT NULL,
                     food_name TEXT NOT NULL,
-                    calories INTEGER NOT NULL,
-                    serving_size TEXT NOT NULL
+                    calories REAL NOT NULL,
+                    serving TEXT NOT NULL,
+                    datetime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')), -- Add the datetime column here
+                    FOREIGN KEY (user_id) REFERENCES users (id)
                 )''')
 conn.commit()
+
 
 # Global variable for loginpage
 foodpage = None
@@ -41,7 +44,11 @@ loginpage = None
 # Global variables for user_entry and password_entry
 user_entry = None
 password_entry = None
+
+# global 
 info_label = None
+calorie_intake = 0
+
 
 
 def calculate_calorie_intake(weight_goal, current_weight):
@@ -73,30 +80,25 @@ def foodto_homepage():
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
 
-def save_food_data(food_name, calories, serving_size):
-    # Get the user ID from the user_data (Assuming the 'id' is the first column in the users table)
-    user_id = user_data[0]
-
-    # Insert the food data into the food_entries table
-    cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving_size) VALUES (?, ?, ?, ?)",
-                       (user_id, food_name, calories, serving_size))
+def save_food_entry(food_name, calories, serving):
+    global user_data
+    cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving) VALUES (?, ?, ?, ?)",
+                   (user_data[0], food_name, calories, serving))
     conn.commit()
+    update_calories()
 
-    # Update the info_label with the new total calories
-    update_info_label()
+def calculate_total_calories():
+    global user_data
+    cursor.execute("SELECT SUM(calories) FROM food_entries WHERE user_id=?", (user_data[0],))
+    total_calories = cursor.fetchone()
+    return total_calories[0] if total_calories[0] else 0
 
-def get_total_calories():
-    # Get the user ID from the user_data (Assuming the 'id' is the first column in the users table)
-    user_id = user_data[0]
+def update_calories():
+    global info_label, calorie_intake  # Add 'global' here
+    total_calories = calculate_total_calories()
+    info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
-    # Retrieve food entries for the current user from the food_entries table
-    cursor.execute("SELECT calories FROM food_entries WHERE user_id=?", (user_id,))
-    rows = cursor.fetchall()
 
-    # Calculate the total calories from the retrieved food entries
-    total_calories = sum([row[0] for row in rows])
-
-    return total_calories
 def foodpage_function():
 
     global foodpage, homepage
@@ -109,8 +111,6 @@ def foodpage_function():
     foodpage.maxsize(900, 600)
     foodpage.configure(fg_color="#232635")
     
-
-
 
     # Main Frames  
 
@@ -144,13 +144,6 @@ def foodpage_function():
     serving1_label = ctk.CTkLabel(master=entry_frame,text="Serving:", )
     serving1_label.place(relx=0.3, rely=0.55)
 
-    info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
-    info_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-
-    # Call the update_info_label() function to initially set the total calories
-    update_info_label()
-
-
     # Entry
 
     foodname_entry = ctk.CTkEntry(master= entry_frame, width=220, height=35, font=('Switzer', 14))
@@ -161,8 +154,6 @@ def foodpage_function():
 
     serving1_entry = ctk.CTkEntry(master= entry_frame, width=220, height=35, font=('Switzer', 14))
     serving1_entry.place(relx=0.75, rely=0.6, anchor=tk.CENTER)
-
-    
 
     # Buttons
 
@@ -175,18 +166,39 @@ def foodpage_function():
                                 corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
     back_button.place(relx=0.1, rely=0.9, anchor=tk.CENTER)
 
-def update_info_label():
-    total_calories = get_total_calories()
-    info_label.configure(text=f"Total Calories: {total_calories} calories")
+    def save_entry():
+        food_name = foodname_entry.get()
+        calories = calorie1_entry.get()
+        serving = serving1_entry.get()
 
+        # Check if any required field is empty
+        if not food_name or not calories or not serving:
+            messagebox.showerror("Error", "Please fill in all the required fields.")
+            return
+
+        # Check if calories is a valid number
+        try:
+            calories = float(calories)
+        except ValueError:
+            messagebox.showerror("Error", "Calories must be a number.")
+            return
+
+        # Save the food entry to the database
+        save_food_entry(food_name, calories, serving)
+        update_calories()
+
+        # Clear the entry fields after saving
+        foodname_entry.delete(0, tk.END)
+        calorie1_entry.delete(0, tk.END)
+        serving1_entry.delete(0, tk.END)
+
+    enter_button.configure(command=save_entry)
 
 
     foodpage.mainloop()
 
-
-
 def homescreen_function():
-    global user_data, homepage
+    global user_data, homepage, info_label, calorie_intake
     loginpage.destroy()  # Destroy current window and create a new one
     homepage = ctk.CTk()  # Creating homepage window
     homepage.geometry("1280x750")
