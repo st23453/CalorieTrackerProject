@@ -10,7 +10,7 @@ ctk.set_default_color_theme("green")  # Set the color theme
 
 # Create the database connection function
 def get_database_connection():
-    return sqlite3.connect('testingdatabase.db')
+    return sqlite3.connect('database1.db')
 
 # Create or connect to the SQLite3 database
 with get_database_connection() as conn:
@@ -358,7 +358,6 @@ def signup_function():
     weight_goal_combobox.place(relx=0.6, rely=0.7, anchor=tk.CENTER)
 
     def save_signup():
-       
         # Get the input values from the entries
         username = username_entry.get()
         password = password_entry.get()
@@ -384,18 +383,37 @@ def signup_function():
         except ValueError:
             messagebox.showerror("Error", "Current weight must be a number.")
             return
-        
+
         # Check if weight goal is selected
         if weight_goal == "Select":
             messagebox.showwarning("Error", "Please select a weight goal.")
             return
 
+        # Check if the username already exists in the database
+        with get_database_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT username FROM users WHERE username=?", (username,))
+            existing_user = cursor.fetchone()
+
+        if existing_user:
+            messagebox.showerror("Error", "Username already exists. Please choose a different username.")
+            return
+
         # Calculate the recommended calorie intake based on the weight goal and current weight
         calorie_intake = calculate_calorie_intake(weight_goal, current_weight)
 
-        cursor.execute("INSERT INTO users (username, password, age, current_weight, weight_goal) VALUES (?, ?, ?, ?, ?)",
-                       (username, password, age, current_weight, weight_goal))
-        conn.commit()
+        # Insert the new user into the database
+        with get_database_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (username, password, age, current_weight, weight_goal) VALUES (?, ?, ?, ?, ?)",
+                        (username, password, age, current_weight, weight_goal))
+            conn.commit()
+
+        # Show a success message
+        messagebox.showinfo("Success", "Account created successfully!")
+
+        # Optionally, you can navigate the user back to the login page after successful signup
+        go_back()
 
     save_button = ctk.CTkButton(master=signup, text="Sign Up", command=save_signup,
                                 corner_radius=6, fg_color="#FFC300", font=('Switzer', 12, 'bold'))
