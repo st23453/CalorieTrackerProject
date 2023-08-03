@@ -3,15 +3,24 @@ from tkinter import messagebox
 from tkinter.ttk import Combobox
 import customtkinter as ctk
 import sqlite3
+import datetime
 
 # Set customtkinter appearance mode and color theme
 ctk.set_appearance_mode("system")  # Set light or dark mode
 ctk.set_default_color_theme("green")  # Set the color theme
 
+def get_current_date():
+    current_date = datetime.date.today()
+    return current_date.strftime("%B %d, %Y")
+
+# Create the database connection function
+def get_database_connection():
+    return sqlite3.connect('database2.db')
+
 # Create or connect to the SQLite3 database
-conn = sqlite3.connect('testdatabase.db')
-cursor = conn.cursor()
-cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+with get_database_connection() as conn:
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY,
                     username TEXT NOT NULL UNIQUE,
                     password TEXT NOT NULL,
@@ -19,17 +28,34 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                     current_weight REAL,
                     weight_goal TEXT
                 )''')
-conn.commit()
+    conn.commit()
+
+    # Add a table for food entries
+    cursor.execute('''CREATE TABLE IF NOT EXISTS food_entries (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    food_name TEXT NOT NULL,
+                    calories REAL NOT NULL,
+                    serving TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )''')
+    conn.commit()
 
 # Global variable for loginpage
 foodpage = None
 homepage = None
 loginpage = None
+historypage = None
+
+homepage_info_label = None
 
 # Global variables for user_entry and password_entry
 user_entry = None
 password_entry = None
 
+# Global
+info_label = None
+calorie_intake = 0
 
 def calculate_calorie_intake(weight_goal, current_weight):
     if weight_goal == "Lose Weight":
@@ -43,10 +69,12 @@ def login():
     global user_entry, password_entry, user_data
     written_username = user_entry.get()
     written_password = password_entry.get()
-    
-    cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (written_username, written_password))
-    user_data = cursor.fetchone()
-    
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (written_username, written_password))
+        user_data = cursor.fetchone()
+
     if user_data:
         homescreen_function()
     else:
@@ -60,20 +88,60 @@ def foodto_homepage():
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
 
-def foodpage_function():
+def save_food_entry(food_name, calories, serving):
+    global user_data
 
-    global foodpage, homepage
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving) VALUES (?, ?, ?, ?)",
+                       (user_data[0], food_name, calories, serving))
+        conn.commit()
+
+    update_calories()
+
+def calculate_total_calories():
+    global user_data
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT SUM(calories) FROM food_entries WHERE user_id=?", (user_data[0],))
+        total_calories = cursor.fetchone()
+
+    return total_calories[0] if total_calories[0] else 0
+
+def update_calories():
+    total_calories = calculate_total_calories()
+    current_date = get_current_date()
+    info_label.configure(text=f"Today's date: {current_date}\nBase Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+    homepage_info_label.configure(text=f"Today's date: {current_date}\nBase Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+
+def historypage_function():
+    global historypage, homepage, user_data
+
+    if homepage:
+        homepage.withdraw()
+
+    historypage = ctk.CTk()
+    historypage.geometry("800x450")
+    historypage.title('History Page')
+    historypage.maxsize(900, 600)
+    historypage.configure(fg_color="#232635")
+
+    historypage.mainloop()
+
+def foodpage_function():
+    global foodpage, homepage, homepage_info_label
+
     if homepage:
         homepage.withdraw()  # Hide the homepage
 
-    foodpage = ctk.CTk()  
+    foodpage = ctk.CTk()
     foodpage.geometry("800x450")
     foodpage.title('Food Page')
     foodpage.maxsize(900, 600)
     foodpage.configure(fg_color="#232635")
     
-
-
 
     # Main Frames  
 
@@ -125,15 +193,87 @@ def foodpage_function():
     enter_button.place(relx=0.75, rely=0.8, anchor=tk.CENTER)
 
     # Back button to return to homepage
-    back_button = ctk.CTkButton(master=foodpage, text="Back", command=foodto_homepage,
+    back_button = ctk.CTkButton(master=progression_frame, text="Back", command=foodto_homepage,
                                 corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
-    back_button.place(relx=0.1, rely=0.9, anchor=tk.CENTER)
+    back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
 
+    def save_entry():
+        food_name = foodname_entry.get()
+        calories = calorie1_entry.get()
+        serving = serving1_entry.get()
+
+        # Check if any required field is empty
+        if not food_name or not calories or not serving:
+            messagebox.showerror("Error", "Please fill in all the required fields.")
+            return
+
+        # Check if calories is a valid number
+        try:
+            calories = float(calories)
+        except ValueError:
+            messagebox.showerror("Error", "Calories must be a number.")
+            return
+
+        # Save the food entry to the database
+        save_food_entry(food_name, calories, serving)
+        update_calories()
+
+        # Clear the entry fields after saving
+        foodname_entry.delete(0, tk.END)
+        calorie1_entry.delete(0, tk.END)
+        serving1_entry.delete(0, tk.END)
+
+         # Display the updated total calories in the info_frame
+        total_calories = calculate_total_calories()
+        info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+        # Display the updated total calories in the homepage info_frame as well
+        homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+    enter_button.configure(command=save_entry)
+
+    # Create a label to display calorie information in the info_frame
+    global info_label
+    info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
+    info_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+    # Update the calorie information when the food page is created
+    total_calories = calculate_total_calories()
+    info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+    # Update the info_label to refer to the global homepage_info_label
+    info_label = homepage_info_label
+
+    # Create a label to display the date in the info_frame
+    date_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 12), anchor=tk.W)
+    date_label.place(relx=0.1, rely=0.2, anchor=tk.W)
+    date_label.configure(text="Today's date:")
+
+    # Create a label to display the actual date in big text
+    date_value_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 24), anchor=tk.W)
+    date_value_label.place(relx=0.1, rely=0.4, anchor=tk.W)
+
+    # Update the date label with the current date
+    current_date = get_current_date()
+    date_value_label.configure(text=current_date)
 
     foodpage.mainloop()
 
 def homescreen_function():
-    global user_data, homepage
+    global user_data, homepage, info_label, calorie_intake, homepage_info_label
+
+    def log_out():
+        # Display a confirmation dialog box
+        response = messagebox.askyesno("Confirmation", "Are you sure you want to log out?")
+
+        if response:
+            # If the user clicks "Yes," destroy the homepage window and create the login page again.
+            homepage.destroy()
+            create_loginpage()
+        else:
+            # If the user clicks "No," do nothing and remove the message.
+            pass
+
     loginpage.destroy()  # Destroy current window and create a new one
     homepage = ctk.CTk()  # Creating homepage window
     homepage.geometry("1280x750")
@@ -168,17 +308,54 @@ def homescreen_function():
     info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
     info_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
+    # In the homescreen_function() add the following lines before entering the mainloop to update the homepage info_label
+    homepage_info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
+    homepage_info_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: 0 calories")  # Initial value
+
+    # Update the calorie information when the home page is created
+    total_calories = calculate_total_calories()
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+    # Update the info_label to refer to the global homepage_info_label
+    info_label = homepage_info_label
+
     # Calculate the recommended calorie intake based on the user's weight and weight goal
     calorie_intake = calculate_calorie_intake(user_data[5], user_data[4])
     info_label.configure(text=f"Base Goal: {calorie_intake} calories")
+
+    # Create a label to display the date in the info_frame
+    date_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 12), anchor=tk.W)
+    date_label.place(relx=0.1, rely=0.2, anchor=tk.W)
+    date_label.configure(text="Today's date:")
+
+    # Create a label to display the actual date in big text
+    date_value_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 24), anchor=tk.W)
+    date_value_label.place(relx=0.1, rely=0.4, anchor=tk.W)
+
+    # Update the date label with the current date
+    current_date = get_current_date()
+    date_value_label.configure(text=current_date)
 
     #buttons inside entry_frame
 
     food_button = ctk.CTkButton(master= entry_frame, text="Food", command=foodpage_function)
     food_button.place(relx=0.2,rely=0.5,anchor="center")
-    
-    homepage.mainloop()
 
+    #buttons inside the user_frame
+
+    # Create the log out button on the homepage
+    logout_button = ctk.CTkButton(master=user_frame, text="Log Out", command=log_out,
+                                  corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
+    logout_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+
+    history_button = ctk.CTkButton(master=user_frame, text="History", command=historypage_function,
+                                  corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
+    history_button.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
+
+
+
+    homepage.mainloop()
 
 def signup_function():
     global user_entry, password_entry
@@ -236,7 +413,6 @@ def signup_function():
     weight_goal_combobox.place(relx=0.6, rely=0.7, anchor=tk.CENTER)
 
     def save_signup():
-       
         # Get the input values from the entries
         username = username_entry.get()
         password = password_entry.get()
@@ -262,18 +438,37 @@ def signup_function():
         except ValueError:
             messagebox.showerror("Error", "Current weight must be a number.")
             return
-        
+
         # Check if weight goal is selected
         if weight_goal == "Select":
             messagebox.showwarning("Error", "Please select a weight goal.")
             return
 
+        # Check if the username already exists in the database
+        with get_database_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT username FROM users WHERE username=?", (username,))
+            existing_user = cursor.fetchone()
+
+        if existing_user:
+            messagebox.showerror("Error", "Username already exists. Please choose a different username.")
+            return
+
         # Calculate the recommended calorie intake based on the weight goal and current weight
         calorie_intake = calculate_calorie_intake(weight_goal, current_weight)
 
-        cursor.execute("INSERT INTO users (username, password, age, current_weight, weight_goal) VALUES (?, ?, ?, ?, ?)",
-                       (username, password, age, current_weight, weight_goal))
-        conn.commit()
+        # Insert the new user into the database
+        with get_database_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO users (username, password, age, current_weight, weight_goal) VALUES (?, ?, ?, ?, ?)",
+                        (username, password, age, current_weight, weight_goal))
+            conn.commit()
+
+        # Show a success message
+        messagebox.showinfo("Success", "Account created successfully!")
+
+        # Optionally, you can navigate the user back to the login page after successful signup
+        go_back()
 
     save_button = ctk.CTkButton(master=signup, text="Sign Up", command=save_signup,
                                 corner_radius=6, fg_color="#FFC300", font=('Switzer', 12, 'bold'))
@@ -286,13 +481,11 @@ def signup_function():
 
     signup.mainloop()
 
-
 def validate_age_input(char):
     return char.isdigit() or char == ""
 
 def validate_current_weight_input(char):
     return char.isdigit() or char == "." or char == ""
-
 
 def create_loginpage():
     global loginpage, user_entry, password_entry
@@ -335,7 +528,6 @@ def create_loginpage():
 
 
     loginpage.mainloop()
-
 
 # Create Login page
 create_loginpage()

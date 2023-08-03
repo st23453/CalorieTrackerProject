@@ -40,6 +40,7 @@ with get_database_connection() as conn:
 foodpage = None
 homepage = None
 loginpage = None
+historypage = None
 
 homepage_info_label = None
 
@@ -107,6 +108,20 @@ def update_calories():
     total_calories = calculate_total_calories()
     info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
+def historypage_function():
+    global historypage, homepage, user_data
+
+    if homepage:
+        homepage.withdraw()
+
+    historypage = ctk.CTk()
+    historypage.geometry("800x450")
+    historypage.title('History Page')
+    historypage.maxsize(900, 600)
+    historypage.configure(fg_color="#232635")
+
+    historypage.mainloop()
+
 def foodpage_function():
     global foodpage, homepage, homepage_info_label
 
@@ -170,9 +185,9 @@ def foodpage_function():
     enter_button.place(relx=0.75, rely=0.8, anchor=tk.CENTER)
 
     # Back button to return to homepage
-    back_button = ctk.CTkButton(master=foodpage, text="Back", command=foodto_homepage,
+    back_button = ctk.CTkButton(master=progression_frame, text="Back", command=foodto_homepage,
                                 corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
-    back_button.place(relx=0.1, rely=0.9, anchor=tk.CENTER)
+    back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
 
     def save_entry():
         food_name = foodname_entry.get()
@@ -272,22 +287,6 @@ def homescreen_function():
     info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
     info_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
-    # Calculate the recommended calorie intake based on the user's weight and weight goal
-    calorie_intake = calculate_calorie_intake(user_data[5], user_data[4])
-    info_label.configure(text=f"Base Goal: {calorie_intake} calories")
-
-    #buttons inside entry_frame
-
-    food_button = ctk.CTkButton(master= entry_frame, text="Food", command=foodpage_function)
-    food_button.place(relx=0.2,rely=0.5,anchor="center")
-
-    #buttons inside the info_frame
-
-    # Create the log out button on the homepage
-    logout_button = ctk.CTkButton(master=user_frame, text="Log Out", command=log_out,
-                                  corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
-    logout_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
-
     # In the homescreen_function() add the following lines before entering the mainloop to update the homepage info_label
     homepage_info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
     homepage_info_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
@@ -299,6 +298,28 @@ def homescreen_function():
 
     # Update the info_label to refer to the global homepage_info_label
     info_label = homepage_info_label
+
+    # Calculate the recommended calorie intake based on the user's weight and weight goal
+    calorie_intake = calculate_calorie_intake(user_data[5], user_data[4])
+    info_label.configure(text=f"Base Goal: {calorie_intake} calories")
+
+    #buttons inside entry_frame
+
+    food_button = ctk.CTkButton(master= entry_frame, text="Food", command=foodpage_function)
+    food_button.place(relx=0.2,rely=0.5,anchor="center")
+
+    #buttons inside the user_frame
+
+    # Create the log out button on the homepage
+    logout_button = ctk.CTkButton(master=user_frame, text="Log Out", command=log_out,
+                                  corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
+    logout_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+
+    history_button = ctk.CTkButton(master=user_frame, text="History", command=historypage_function,
+                                  corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
+    history_button.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
+
+
 
     homepage.mainloop()
 
