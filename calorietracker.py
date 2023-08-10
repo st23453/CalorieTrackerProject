@@ -15,7 +15,7 @@ def get_current_date():
 
 # Create the database connection function
 def get_database_connection():
-    return sqlite3.connect('database2.db')
+    return sqlite3.connect('database3.db')
 
 # Create or connect to the SQLite3 database
 with get_database_connection() as conn:
@@ -37,8 +37,10 @@ with get_database_connection() as conn:
                     food_name TEXT NOT NULL,
                     calories REAL NOT NULL,
                     serving TEXT NOT NULL,
+                    date DATE NOT NULL,  -- Change the type to TEXT or DATE based on your needs
                     FOREIGN KEY (user_id) REFERENCES users (id)
                 )''')
+
     conn.commit()
 
 # Global variable
@@ -53,6 +55,7 @@ password_entry = None
 info_label = None
 calorie_intake = 0
 
+# Calculating the base calorie for the user
 def calculate_calorie_intake(weight_goal, current_weight):
     if weight_goal == "Lose Weight":
         return int(current_weight * 30) - 300
@@ -61,6 +64,8 @@ def calculate_calorie_intake(weight_goal, current_weight):
     elif weight_goal == "Maintain Weight":
         return int(current_weight * 30)
 
+
+# Login Function
 def login():
     global user_entry, password_entry, user_data
     written_username = user_entry.get()
@@ -86,7 +91,11 @@ def calculate_total_calories():
 
     return total_calories[0] if total_calories[0] else 0
 
+
+# Update the calorie count when new entry is made
 def update_calories():
+    global user_data
+
     with get_database_connection() as conn:
         cursor = conn.cursor()
         # Get the current date
@@ -97,8 +106,10 @@ def update_calories():
     # Update the calorie information on the homepage
     homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories[0]} calories")
 
+
 ####################################################################################################################################
 
+# Back button function for historypage to homepage
 def historyto_homepage():
     global historypage, homepage
     if historypage:
@@ -107,6 +118,7 @@ def historyto_homepage():
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
 
+# History page
 def historypage_function():
     global historypage, homepage, user_data
 
@@ -128,21 +140,38 @@ def historypage_function():
 
 ####################################################################################################################################
 
+def update_homepage_calories():
+    global homepage_info_label, user_data
+
+    total_calories = calculate_total_calories()
+
+    # Update the calorie information on the homepage
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+# Back button function for foodpage to homepage
 def foodto_homepage():
     global foodpage, homepage
     if foodpage:
         foodpage.destroy()
 
+    # Update the calorie consumed label on the homepage
+    update_homepage_calories()
+
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
+    
 
+# Save the entry
 def save_food_entry(food_name, calories, serving):
     global user_data
 
+    # Get the current date as a string in the format 'YYYY-MM-DD'
+    current_date = datetime.date.today().strftime("%Y-%m-%d")
+
     with get_database_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving) VALUES (?, ?, ?, ?)",
-                       (user_data[0], food_name, calories, serving))
+        cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving, date) VALUES (?, ?, ?, ?, ?)",
+                       (user_data[0], food_name, calories, serving, current_date))
         conn.commit()
 
     update_calories()
@@ -234,6 +263,7 @@ def foodpage_function():
         except ValueError:
             messagebox.showerror("Error", "Calories must be a number.")
             return
+
 
         # Save the food entry to the database
         save_food_entry(food_name, calories, serving)

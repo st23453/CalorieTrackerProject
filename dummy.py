@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from tkinter import messagebox
 from tkinter.ttk import Combobox
 import customtkinter as ctk
@@ -9,9 +10,14 @@ import datetime
 ctk.set_appearance_mode("system")  # Set light or dark mode
 ctk.set_default_color_theme("green")  # Set the color theme
 
+# Get the current date
+
 def get_current_date():
     current_date = datetime.date.today()
     return current_date.strftime("%B %d, %Y")
+
+
+# Datebase
 
 # Create the database connection function
 def get_database_connection():
@@ -42,6 +48,7 @@ with get_database_connection() as conn:
                 )''')
 
     conn.commit()
+########################################################################################################################
 
 # Global variable
 
@@ -55,6 +62,11 @@ password_entry = None
 info_label = None
 calorie_intake = 0
 
+########################################################################################################################
+
+# Defining calculations and updates
+
+
 # Calculating the base calorie for the user
 def calculate_calorie_intake(weight_goal, current_weight):
     if weight_goal == "Lose Weight":
@@ -63,24 +75,7 @@ def calculate_calorie_intake(weight_goal, current_weight):
         return int(current_weight * 30) + 300
     elif weight_goal == "Maintain Weight":
         return int(current_weight * 30)
-
-
-# Login Function
-def login():
-    global user_entry, password_entry, user_data
-    written_username = user_entry.get()
-    written_password = password_entry.get()
-
-    with get_database_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (written_username, written_password))
-        user_data = cursor.fetchone()
-
-    if user_data:
-        homescreen_function()
-    else:
-        messagebox.showwarning(title="Error", message="Invalid Username Or Password")
-
+    
 def calculate_total_calories():
     global user_data
 
@@ -107,7 +102,100 @@ def update_calories():
     homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories[0]} calories")
 
 
+def update_weight_if_needed():
+    global user_data, calorie_intake
+
+    total_calories = calculate_total_calories()
+
+    if total_calories >= calorie_intake:
+        weight_goal = user_data[5]
+
+        # Determine whether to add or subtract 0.1kg based on weight goal
+        if weight_goal == "Gain Weight":
+            new_weight = user_data[4] + 0.1  # Add 0.1kg
+        elif weight_goal == "Lose Weight":
+            new_weight = user_data[4] - 0.1  # Subtract 0.1kg
+        else:
+            return  # No weight adjustment for other goals
+
+        with get_database_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET current_weight=? WHERE id=?", (new_weight, user_data[0]))
+            conn.commit()
+
+        # Update the user_data variable with the new weight
+        user_data = (*user_data[:4], new_weight, user_data[5])
+
+        # Update the homepage's calorie info and weight
+        update_homepage_calories()
+
+
+def update_homepage_calories():
+    global homepage_info_label, user_data
+
+    total_calories = calculate_total_calories()
+
+    # Update the calorie information on the homepage
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+
+# Save the entry
+def save_food_entry(food_name, calories, serving):
+    global user_data
+
+    # Get the current date as a string in the format 'YYYY-MM-DD'
+    current_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving, date) VALUES (?, ?, ?, ?, ?)",
+                       (user_data[0], food_name, calories, serving, current_date))
+        conn.commit()
+
+    update_calories()
+
+
+
+    
+########################################################################################################################
+
+# Login Function
+def login():
+    global user_entry, password_entry, user_data
+    written_username = user_entry.get()
+    written_password = password_entry.get()
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (written_username, written_password))
+        user_data = cursor.fetchone()
+
+    if user_data:
+        homescreen_function()
+    else:
+        messagebox.showwarning(title="Error", message="Invalid Username Or Password")
+
 ####################################################################################################################################
+
+# HISTORY FUNCTION
+
+# Popluar tree for the history function
+
+def populate_tree(tree):
+    # Clear existing entries
+    tree.delete(*tree.get_children())
+
+    # Fetch historical data from the database and populate the tree view
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT date, calories FROM food_entries WHERE user_id=?", (user_data[0],))
+        entries = cursor.fetchall()
+
+        for entry in entries:
+            date, calories = entry
+            cursor.execute("SELECT current_weight FROM users WHERE id=?", (user_data[0],))
+            current_weight = cursor.fetchone()[0]
+            tree.insert("", "end", values=(date, calories, current_weight))
 
 # Back button function for historypage to homepage
 def historyto_homepage():
@@ -117,6 +205,7 @@ def historyto_homepage():
 
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
+
 
 # History page
 def historypage_function():
@@ -136,17 +225,28 @@ def historypage_function():
                                 corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
     back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
 
+    # Create a TreeView widget
+    tree = ttk.Treeview(historypage, columns=("Date", "Calories", "Weight"), show="headings")
+    tree.heading("Date", text="Date")
+    tree.heading("Calories", text="Calories")
+    tree.heading("Weight", text="Weight")
+    
+    # Place the TreeView widget with padding and adjusted size
+    tree.place(relx=0.5, rely=0.45, anchor=tk.CENTER, relwidth=0.8, relheight=0.6)
+
+    # Define the column widths
+    tree.column("Date", width=150)
+    tree.column("Calories", width=150)
+    tree.column("Weight", width=150)
+
+    # Populate the tree view with historical data
+    populate_tree(tree)
+
     historypage.mainloop()
 
 ####################################################################################################################################
 
-def update_homepage_calories():
-    global homepage_info_label, user_data
-
-    total_calories = calculate_total_calories()
-
-    # Update the calorie information on the homepage
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+# FOOD FUNCTION
 
 # Back button function for foodpage to homepage
 def foodto_homepage():
@@ -160,22 +260,6 @@ def foodto_homepage():
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
     
-
-# Save the entry
-def save_food_entry(food_name, calories, serving):
-    global user_data
-
-    # Get the current date as a string in the format 'YYYY-MM-DD'
-    current_date = datetime.date.today().strftime("%Y-%m-%d")
-
-    with get_database_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving, date) VALUES (?, ?, ?, ?, ?)",
-                       (user_data[0], food_name, calories, serving, current_date))
-        conn.commit()
-
-    update_calories()
-
 def foodpage_function():
     global foodpage, homepage, homepage_info_label
 
@@ -264,7 +348,6 @@ def foodpage_function():
             messagebox.showerror("Error", "Calories must be a number.")
             return
 
-
         # Save the food entry to the database
         save_food_entry(food_name, calories, serving)
         update_calories()
@@ -273,6 +356,11 @@ def foodpage_function():
         foodname_entry.delete(0, tk.END)
         calorie1_entry.delete(0, tk.END)
         serving1_entry.delete(0, tk.END)
+
+        # Update the total calories and weight if needed
+        update_homepage_calories()
+        update_weight_if_needed()
+
 
 #-----------------------------------------------------------------------------------------------------
 
@@ -390,8 +478,26 @@ def homescreen_function():
 
     # Inside entry_frame
 
-    food_button = ctk.CTkButton(master= entry_frame, text="Food", command=foodpage_function)
+    # label
+    select_label = ctk.CTkLabel(master = entry_frame, text="Select What To Enter")
+    select_label.place(relx=0.5,rely=0.2,anchor="center")
+
+    consumed_label = ctk.CTkLabel(master = entry_frame, text="Consumed")
+    consumed_label.place(relx=0.2,rely=0.3,anchor="center")
+    
+    burned_label = ctk.CTkLabel(master = entry_frame, text="Burned")
+    burned_label.place(relx=0.8,rely=0.3,anchor="center")
+
+    # button
+
+    food_button = ctk.CTkButton(master= entry_frame, text="Food", command=foodpage_function, fg_color="#f1c232")
     food_button.place(relx=0.2,rely=0.5,anchor="center")
+
+    # Inside user_frame
+
+    #
+    username_label = ctk.CTkLabel(master=user_frame, text=f"{user_data[1]}", font=("Switzer", 16))
+    username_label.place(relx=0.5, rely=0.1, anchor=tk.CENTER)
 
     #buttons inside the user_frame
 
