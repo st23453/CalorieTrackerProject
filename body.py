@@ -10,9 +10,14 @@ import datetime
 ctk.set_appearance_mode("system")  # Set light or dark mode
 ctk.set_default_color_theme("green")  # Set the color theme
 
+# Get the current date
+
 def get_current_date():
     current_date = datetime.date.today()
     return current_date.strftime("%B %d, %Y")
+
+
+# Datebase
 
 # Create the database connection function
 def get_database_connection():
@@ -43,6 +48,7 @@ with get_database_connection() as conn:
                 )''')
 
     conn.commit()
+########################################################################################################################
 
 # Global variable
 
@@ -56,6 +62,11 @@ password_entry = None
 info_label = None
 calorie_intake = 0
 
+########################################################################################################################
+
+# Defining calculations and updates
+
+
 # Calculating the base calorie for the user
 def calculate_calorie_intake(weight_goal, current_weight):
     if weight_goal == "Lose Weight":
@@ -64,24 +75,7 @@ def calculate_calorie_intake(weight_goal, current_weight):
         return int(current_weight * 30) + 300
     elif weight_goal == "Maintain Weight":
         return int(current_weight * 30)
-
-
-# Login Function
-def login():
-    global user_entry, password_entry, user_data
-    written_username = user_entry.get()
-    written_password = password_entry.get()
-
-    with get_database_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (written_username, written_password))
-        user_data = cursor.fetchone()
-
-    if user_data:
-        homescreen_function()
-    else:
-        messagebox.showwarning(title="Error", message="Invalid Username Or Password")
-
+    
 def calculate_total_calories():
     global user_data
 
@@ -107,7 +101,6 @@ def update_calories():
     # Update the calorie information on the homepage
     homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories[0]} calories")
 
-####################################################################################################################################
 
 def update_weight_if_needed():
     global user_data, calorie_intake
@@ -137,8 +130,56 @@ def update_weight_if_needed():
         update_homepage_calories()
 
 
+def update_homepage_calories():
+    global homepage_info_label, user_data
+
+    total_calories = calculate_total_calories()
+
+    # Update the calorie information on the homepage
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+
+# Save the entry
+def save_food_entry(food_name, calories, serving):
+    global user_data
+
+    # Get the current date as a string in the format 'YYYY-MM-DD'
+    current_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving, date) VALUES (?, ?, ?, ?, ?)",
+                       (user_data[0], food_name, calories, serving, current_date))
+        conn.commit()
+
+    update_calories()
+
+
+
+    
+########################################################################################################################
+
+# Login Function
+def login():
+    global user_entry, password_entry, user_data
+    written_username = user_entry.get()
+    written_password = password_entry.get()
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (written_username, written_password))
+        user_data = cursor.fetchone()
+
+    if user_data:
+        homescreen_function()
+    else:
+        messagebox.showwarning(title="Error", message="Invalid Username Or Password")
 
 ####################################################################################################################################
+
+# HISTORY FUNCTION
+
+# Popluar tree for the history function
 
 def populate_tree(tree):
     # Clear existing entries
@@ -164,6 +205,7 @@ def historyto_homepage():
 
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
+
 
 # History page
 def historypage_function():
@@ -202,18 +244,9 @@ def historypage_function():
 
     historypage.mainloop()
 
-
-
-
 ####################################################################################################################################
 
-def update_homepage_calories():
-    global homepage_info_label, user_data
-
-    total_calories = calculate_total_calories()
-
-    # Update the calorie information on the homepage
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+# FOOD FUNCTION
 
 # Back button function for foodpage to homepage
 def foodto_homepage():
@@ -227,22 +260,6 @@ def foodto_homepage():
     if homepage:  # If homepage is hidden, show it again
         homepage.deiconify()
     
-
-# Save the entry
-def save_food_entry(food_name, calories, serving):
-    global user_data
-
-    # Get the current date as a string in the format 'YYYY-MM-DD'
-    current_date = datetime.date.today().strftime("%Y-%m-%d")
-
-    with get_database_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO food_entries (user_id, food_name, calories, serving, date) VALUES (?, ?, ?, ?, ?)",
-                       (user_data[0], food_name, calories, serving, current_date))
-        conn.commit()
-
-    update_calories()
-
 def foodpage_function():
     global foodpage, homepage, homepage_info_label
 
@@ -266,8 +283,8 @@ def foodpage_function():
 
     # Frames Inside the main frames
 
-    progression_frame = ctk.CTkFrame(master=main1_frame, width=200, height=800, corner_radius=20,border_width=2)
-    progression_frame.pack(padx = "10", pady = "20") #top of the page
+    foodinfo_frame = ctk.CTkFrame(master=main1_frame, width=200, height=800, corner_radius=20,border_width=2)
+    foodinfo_frame.pack(padx = "10", pady = "20") #top of the page
 
     entry_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=250, corner_radius=20,border_width=2)
     entry_frame.pack(side= "top", padx = 10, pady = 15) #top of the page
@@ -309,8 +326,10 @@ def foodpage_function():
 
 #-----------------------------------------------------------------------------------------------------
 
+# Inside the foodinfo_frame
+
     # Back button to return to homepage
-    back_button = ctk.CTkButton(master=progression_frame, text="Back", command=foodto_homepage,
+    back_button = ctk.CTkButton(master=foodinfo_frame, text="Back", command=foodto_homepage,
                                 corner_radius=6, fg_color="#f46b41", font=('Switzer', 12, 'bold'))
     back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
 
@@ -354,6 +373,8 @@ def foodpage_function():
 
 #-----------------------------------------------------------------------------------------------------
 
+# Inside the info_frame
+
     # Create a label to display calorie information in the info_frame
     global food_info_label
     food_info_label = ctk.CTkLabel(master=info_frame, font=("Switzer", 14), anchor=tk.W)
@@ -382,6 +403,8 @@ def foodpage_function():
     foodpage.mainloop()
 
 ####################################################################################################################################
+
+# HOMEPAGE FUNCTION
 
 def homescreen_function():
     global user_data, homepage, info_label, calorie_intake, homepage_info_label
@@ -478,7 +501,7 @@ def homescreen_function():
 
     # Inside user_frame
 
-    #
+    # Displaying user's username
     username_label = ctk.CTkLabel(master=user_frame, text=f"{user_data[1]}", font=("Switzer", 16))
     username_label.place(relx=0.5, rely=0.1, anchor=tk.CENTER)
 
@@ -496,15 +519,17 @@ def homescreen_function():
 
     homepage.mainloop()
 
+
+####################################################################################################################################
+
+# SIGNUP FUNCTION
+
 def signup_function():
     global user_entry, password_entry
 
     def go_back():
         signup.destroy()
         create_loginpage()
-
-####################################################################################################################################
-
 
     loginpage.destroy()  # Destroy current window and create a new one
     
@@ -631,6 +656,8 @@ def validate_current_weight_input(char):
 
 #-----------------------------------------------------------------------------------------------------
 
+# LOGINPAGE FUNCTION
+
 def create_loginpage():
     global loginpage, user_entry, password_entry
 
@@ -641,32 +668,32 @@ def create_loginpage():
     loginpage.configure(fg_color="#232635")
 
     # Login Frame
-    frame = ctk.CTkFrame(master=loginpage, corner_radius=20, fg_color="#232635")
-    frame.pack(pady=20, padx=20, fill="both", expand=True)
+    loginframe = ctk.CTkFrame(master=loginpage, corner_radius=20, fg_color="#232635")
+    loginframe.pack(pady=20, padx=20, fill="both", expand=True)
 
     # Labels
-    label1 = ctk.CTkLabel(master=frame, text="Welcome To The Best", font=('Switzer', 28, 'bold'))
+    label1 = ctk.CTkLabel(master=loginframe, text="Welcome To The Best", font=('Switzer', 28, 'bold'))
     label1.place(relx=0.5, rely=0.26, anchor=tk.CENTER)
 
-    label2 = ctk.CTkLabel(master=frame, text="Calorie Tracker", font=('Switzer', 42, 'bold'))
+    label2 = ctk.CTkLabel(master=loginframe, text="Calorie Tracker", font=('Switzer', 42, 'bold'))
     label2.place(relx=0.5, rely=0.34, anchor=tk.CENTER)
 
     # Info Entry 
-    user_entry = ctk.CTkEntry(master=frame, width=220, height=35, placeholder_text='Username or Email',
+    user_entry = ctk.CTkEntry(master=loginframe, width=220, height=35, placeholder_text='Username or Email',
                               font=('Switzer', 16), fg_color="#e0dcdc", text_color="black") 
     user_entry.place(relx=0.5, rely=0.46, anchor=tk.CENTER) # Username entry
 
-    password_entry = ctk.CTkEntry(master=frame, width=220, height=35, placeholder_text='Password',
+    password_entry = ctk.CTkEntry(master=loginframe, width=220, height=35, placeholder_text='Password',
                                   show="●", font=("Switzer", 16), fg_color="#e0dcdc", text_color="black")
     password_entry.place(relx=0.5, rely=0.54, anchor=tk.CENTER) # Password entry
 
     # Buttons
-    login_button = ctk.CTkButton(master=frame, width=220, height=35, text="Login", command=login,
+    login_button = ctk.CTkButton(master=loginframe, width=220, height=35, text="Login", command=login,
                                  corner_radius=6, fg_color="#FFC300", border_spacing=10,
                                  font=('Switzer', 18, 'bold'))
     login_button.place(relx=0.5, rely=0.63, anchor=tk.CENTER) # Login button
 
-    signup_button = ctk.CTkButton(master=frame, width=220, text="Sign Up For Free", command=signup_function,
+    signup_button = ctk.CTkButton(master=loginframe, width=220, text="Sign Up For Free", command=signup_function,
                                   corner_radius=6, fg_color="transparent", font=('Switzer', 12, 'bold'))
     signup_button.place(relx=0.5, rely=0.72, anchor=tk.CENTER) # Signup Button
 

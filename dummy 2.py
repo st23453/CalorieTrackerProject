@@ -1,3 +1,36 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
@@ -21,7 +54,7 @@ def get_current_date():
 
 # Create the database connection function
 def get_database_connection():
-    return sqlite3.connect('database3.db')
+    return sqlite3.connect('dummy2.db')
 
 # Create or connect to the SQLite3 database
 with get_database_connection() as conn:
@@ -56,11 +89,13 @@ foodpage = None
 homepage = None
 loginpage = None
 historypage = None
-homepage_info_label = None
+homepage_info_label1 = None
+homepage_info_label2 = None
 user_entry = None
 password_entry = None
 info_label = None
 calorie_intake = 0
+calorie_burned = 0
 
 ########################################################################################################################
 
@@ -99,7 +134,7 @@ def update_calories():
         total_calories = cursor.fetchone()
 
     # Update the calorie information on the homepage
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories[0]} calories")
+    homepage_info_label1.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories[0]} calories")
 
 
 def update_weight_if_needed():
@@ -131,12 +166,12 @@ def update_weight_if_needed():
 
 
 def update_homepage_calories():
-    global homepage_info_label, user_data
+    global homepage_info_label1, user_data
 
     total_calories = calculate_total_calories()
 
     # Update the calorie information on the homepage
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+    homepage_info_label1.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
 
 # Save the entry
@@ -244,6 +279,170 @@ def historypage_function():
 
     historypage.mainloop()
 
+
+####################################################################################################################################
+
+# CARDIO FUNCTION
+
+# Back button function for foodpage to homepage
+def cardioto_homepage():
+    global cardiopage, homepage
+    if cardiopage:
+        cardiopage.destroy()
+
+    # Update the calorie consumed label on the homepage
+    update_homepage_calories()
+
+    if homepage:  # If homepage is hidden, show it again
+        homepage.deiconify()
+    
+def cardiopage_function():
+    global cardiopage, homepage, homepage_info_label2
+
+    if homepage:
+        homepage.withdraw()  # Hide the homepage
+
+    cardiopage = ctk.CTk()
+    cardiopage.geometry("800x450")
+    cardiopage.title('Food Page')
+    cardiopage.maxsize(900, 600)
+    cardiopage.configure(fg_color="#232635")
+    
+
+    # Main Frames  
+
+    main1_frame = ctk.CTkFrame(master=cardiopage, width=200, height=800, fg_color="transparent")
+    main1_frame.pack(side = "left", fill = "both", expand = True) #left of the page
+
+    menu2_frame = ctk.CTkFrame(master=cardiopage, width=200, height=800,fg_color="transparent")
+    menu2_frame.pack(side = "right", fill = "both", expand = True) #right of the page
+
+    # Frames Inside the main frames
+
+    foodinfo_frame = ctk.CTkFrame(master=main1_frame, width=200, height=800, corner_radius=20,border_width=2)
+    foodinfo_frame.pack(padx = "10", pady = "20") #top of the page
+
+    entry_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=250, corner_radius=20,border_width=2)
+    entry_frame.pack(side= "top", padx = 10, pady = 15) #top of the page
+
+    info_frame = ctk.CTkFrame(master=menu2_frame, width=600, height=200, corner_radius=20,border_width=2)
+    info_frame.pack(side = "bottom", padx = 10, pady = 20)  #bottom of the page
+
+    # Widgets inside entry_frame
+    
+    # Label
+
+    cardioname_label = ctk.CTkLabel(master=entry_frame,text="Enter Name Of Excercise:")
+    cardioname_label.place(relx=0.3, rely=0.15)
+
+
+    calorie1_label = ctk.CTkLabel(master=entry_frame,text="Enter Amount Of Calories Burned:")
+    calorie1_label.place(relx=0.3, rely=0.35)
+
+
+    serving1_label = ctk.CTkLabel(master=entry_frame,text="Serving:", )
+    serving1_label.place(relx=0.3, rely=0.55)
+
+    # Entry
+
+    cardioname_entry = ctk.CTkEntry(master= entry_frame, width=220, height=35, font=('Roboto', 14))
+    cardioname_entry.place(relx=0.75, rely=0.2, anchor=tk.CENTER)
+
+    calorie2_entry = ctk.CTkEntry(master= entry_frame, width=220, height=35, font=('Roboto', 14))
+    calorie2_entry.place(relx=0.75, rely=0.4, anchor=tk.CENTER)
+
+    serving2_entry = ctk.CTkEntry(master= entry_frame, width=220, height=35, font=('Roboto', 14))
+    serving2_entry.place(relx=0.75, rely=0.6, anchor=tk.CENTER)
+
+    # Buttons
+
+    enter_button = ctk.CTkButton(master=entry_frame, text="Enter",
+                                corner_radius=6, fg_color="#FFC300", font=('Roboto', 14, 'bold'))
+    enter_button.place(relx=0.75, rely=0.8, anchor=tk.CENTER)
+
+#-----------------------------------------------------------------------------------------------------
+
+# Inside the foodinfo_frame
+
+
+    # Displaying user's username
+    username_label = ctk.CTkLabel(master=foodinfo_frame, text=f"{user_data[1]}", font=("Roboto", 16))
+    username_label.place(relx=0.5, rely=0.1, anchor=tk.CENTER)
+
+    # Back button to return to homepage
+    back_button = ctk.CTkButton(master=foodinfo_frame, text="Back", command=cardioto_homepage,
+                                corner_radius=6, fg_color="#f46b41", font=('Roboto', 12, 'bold'))
+    back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+
+    def save_entry2():
+        calorie_name = cardioname_entry.get()
+        calories2 = calorie2_entry.get()
+        serving = serving2_entry.get()
+
+        # Check if any required field is empty
+        if not calorie_name or not calories2 or not serving:
+            messagebox.showerror("Error", "Please fill in all the required fields.")
+            return
+
+        # Check if calories is a valid number
+        try:
+            calories2 = float(calories2)
+        except ValueError:
+            messagebox.showerror("Error", "Calories must be a number.")
+            return
+
+        # Save the food entry to the database
+        save_food_entry(calorie_name, calories2, serving)
+        update_calories()
+
+        # Clear the entry fields after saving
+        cardioname_entry.delete(0, tk.END)
+        calorie2_entry.delete(0, tk.END)
+        serving2_entry.delete(0, tk.END)
+
+        # Update the total calories and weight if needed
+        update_homepage_calories()
+        update_weight_if_needed()
+
+
+#-----------------------------------------------------------------------------------------------------
+
+        # Display the updated total calories in the homepage info_frame as well
+        homepage_info_label2.configure(text=f"Calories Calories: {calorie_burned} calories")
+
+    enter_button.configure(command=save_entry2)
+
+#-----------------------------------------------------------------------------------------------------
+
+# Inside the info_frame
+
+    # Create a label to display calorie information in the info_frame
+    global cardio_info_label
+    cardio_info_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
+    cardio_info_label.place(relx=0.7, rely=0.5, anchor=tk.CENTER)
+
+    # Update the calorie information when the food page is created
+    total_calories = calculate_total_calories()
+    cardio_info_label.configure(text=f"Calories Burned: {calorie_burned} calories")
+
+    # Update the info_label to refer to the global homepage_info_label
+    cardio_info_label = homepage_info_label2
+
+    # Create a label to display the date in the info_frame
+    date_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 12), anchor=tk.W)
+    date_label.place(relx=0.1, rely=0.2, anchor=tk.W)
+    date_label.configure(text="Today's date:")
+
+    # Create a label to display the actual date in big text
+    date_value_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 24), anchor=tk.W)
+    date_value_label.place(relx=0.1, rely=0.4, anchor=tk.W)
+
+    # Update the date label with the current date
+    current_date = get_current_date()
+    date_value_label.configure(text=current_date)
+
+    cardiopage.mainloop()
+
 ####################################################################################################################################
 
 # FOOD FUNCTION
@@ -261,7 +460,7 @@ def foodto_homepage():
         homepage.deiconify()
     
 def foodpage_function():
-    global foodpage, homepage, homepage_info_label
+    global foodpage, homepage, homepage_info_label1
 
     if homepage:
         homepage.withdraw()  # Hide the homepage
@@ -300,7 +499,7 @@ def foodpage_function():
     foodname_label.place(relx=0.3, rely=0.15)
 
 
-    calorie1_label = ctk.CTkLabel(master=entry_frame,text="Enter Amount Of Calories")
+    calorie1_label = ctk.CTkLabel(master=entry_frame,text="Enter Amount Of Calories Consumed:")
     calorie1_label.place(relx=0.3, rely=0.35)
 
 
@@ -327,7 +526,6 @@ def foodpage_function():
 #-----------------------------------------------------------------------------------------------------
 
 # Inside the foodinfo_frame
-
 
     # Displaying user's username
     username_label = ctk.CTkLabel(master=foodinfo_frame, text=f"{user_data[1]}", font=("Roboto", 16))
@@ -372,7 +570,7 @@ def foodpage_function():
 #-----------------------------------------------------------------------------------------------------
 
         # Display the updated total calories in the homepage info_frame as well
-        homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+        homepage_info_label1.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
     enter_button.configure(command=save_entry)
 
@@ -390,7 +588,7 @@ def foodpage_function():
     food_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
     # Update the info_label to refer to the global homepage_info_label
-    food_info_label = homepage_info_label
+    food_info_label = homepage_info_label1
 
     # Create a label to display the date in the info_frame
     date_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 12), anchor=tk.W)
@@ -412,7 +610,7 @@ def foodpage_function():
 # HOMEPAGE FUNCTION
 
 def homescreen_function():
-    global user_data, homepage, info_label, calorie_intake, homepage_info_label
+    global user_data, homepage, info_label, calorie_intake, homepage_info_label1, homepage_info_label2
 
     def log_out():
         # Display a confirmation dialog box
@@ -460,17 +658,36 @@ def homescreen_function():
     # Inside info_frame
 
     # In the homescreen_function() add the following lines before entering the mainloop to update the homepage info_label
-    homepage_info_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
-    homepage_info_label.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: 0 calories")  # Initial value
+    homepage_info_label1 = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
+    homepage_info_label1.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
+    homepage_info_label1.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: 0 calories")  # Initial value
 
     # Update the calorie information when the home page is created
     total_calories = calculate_total_calories()
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+    homepage_info_label1.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
     # Calculate the recommended calorie intake based on the user's weight and weight goal
     calorie_intake = calculate_calorie_intake(user_data[5], user_data[4])
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+    homepage_info_label1.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+###
+    # In the homescreen_function() add the following lines before entering the mainloop to update the homepage info_label
+    homepage_info_label2 = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
+    homepage_info_label2.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
+    homepage_info_label2.configure(text=f"Calories Burned: 0 calories")  # Initial value
+
+    # Update the calorie information when the home page is created
+    total_calories = calculate_total_calories()
+    homepage_info_label2.configure(text=f"Calories Burned: {calorie_burned} calories")
+
+    # Calculate the recommended calorie intake based on the user's weight and weight goal
+    calorie_intake = calculate_calorie_intake(user_data[5], user_data[4])
+    homepage_info_label2.configure(text=f"Calories Burned: {calorie_burned} calories")
+
+
+
+
+###
 
     # Create a label to display the date in the info_frame
     date_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 12), anchor=tk.CENTER)
@@ -507,7 +724,7 @@ def homescreen_function():
     water_button = ctk.CTkButton(master= entry_frame, text="WATER",font=("Roboto", 24, "bold"), fg_color="#6d9eeb", width=210, height=50)
     water_button.place(relx=0.25,rely=0.8,anchor="center")
 
-    cardiovascular_button = ctk.CTkButton(master= entry_frame, text="CARDIOVASCULAR", font=("Roboto", 24, "bold"), fg_color="#6aa84f", width=210, height=50)
+    cardiovascular_button = ctk.CTkButton(master= entry_frame, text="CARDIOVASCULAR", font=("Roboto", 24, "bold"),command=cardiopage_function, fg_color="#6aa84f", width=210, height=50)
     cardiovascular_button.place(relx=0.75,rely=0.5,anchor="center")
 
     strength_button = ctk.CTkButton(master= entry_frame, text="STRENGTH TRAINING", font=("Roboto", 24, "bold"), fg_color="#cc0000", width=200, height=50)
