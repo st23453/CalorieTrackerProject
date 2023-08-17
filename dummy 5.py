@@ -1,14 +1,4 @@
-
-
-
-
-# has water function but not working cuz idk
-
-
-
-
-
-
+# water function v2
 
 import tkinter as tk
 from tkinter import ttk
@@ -28,12 +18,11 @@ def get_current_date():
     current_date = datetime.date.today()
     return current_date.strftime("%B %d, %Y")
 
-
 # Datebase
 
 # Create the database connection function
 def get_database_connection():
-    return sqlite3.connect('database3.db')
+    return sqlite3.connect('database4.db')
 
 # Create or connect to the SQLite3 database
 with get_database_connection() as conn:
@@ -48,7 +37,7 @@ with get_database_connection() as conn:
                 )''')
     conn.commit()
 
-    # Table for food entries
+# Add a table for food entries
     cursor.execute('''CREATE TABLE IF NOT EXISTS food_entries (
                     id INTEGER PRIMARY KEY,
                     user_id INTEGER NOT NULL,
@@ -59,16 +48,17 @@ with get_database_connection() as conn:
                     FOREIGN KEY (user_id) REFERENCES users (id)
                 )''')
     
-    # Table for water entries
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS water_entries (
-            id INTEGER PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            water_amount REAL NOT NULL,
-            date DATE NOT NULL,  -- This is a correct SQL comment
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
+# Add a table for water entries
+    cursor.execute('''CREATE TABLE IF NOT EXISTS water_entries (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    liquid_name TEXT NOT NULL,
+                    amount_ml REAL NOT NULL,
+                    date DATE NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )''')
+
+    conn.commit()
 
     conn.commit()
 ########################################################################################################################
@@ -77,20 +67,20 @@ with get_database_connection() as conn:
 
 foodpage = None
 homepage = None
+waterpage = None
 loginpage = None
 historypage = None
-waterpage = None
 homepage_info_label = None
+water_info_label = None
+food_info_label = None
 user_entry = None
 password_entry = None
 info_label = None
 calorie_intake = 0
-total_water = 0
 
 ########################################################################################################################
 
 # Defining calculations and updates
-
 
 # Calculating the base calorie for the user
 def calculate_calorie_intake(weight_goal, current_weight):
@@ -111,17 +101,6 @@ def calculate_total_calories():
 
     return total_calories[0] if total_calories[0] else 0
 
-def calculate_total_water():
-    global user_id
-    # Assuming you have a similar structure to the food database
-    with get_database_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT SUM(water_amount) FROM water_entries WHERE user_id=?", (user_id,))
-        result = cursor.fetchone()
-        if result[0]:  # Check if result[0] is not None
-            return result[0]
-        else:
-            return 0
 
 # Update the calorie count when new entry is made
 def update_calories():
@@ -135,7 +114,7 @@ def update_calories():
         total_calories = cursor.fetchone()
 
     # Update the calorie information on the homepage
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories[0]} calories")
 
 
 def update_weight_if_needed():
@@ -171,7 +150,7 @@ def update_homepage_calories():
     total_calories = calculate_total_calories()
 
     # Update the calorie information on the homepage
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
 # Save the entry
 def save_food_entry(food_name, calories, serving):
@@ -188,16 +167,49 @@ def save_food_entry(food_name, calories, serving):
 
     update_calories()
 
+def save_water_entry(liquid_name, amount_ml):
+    global user_data
+
+    # Get the current date as a string in the format 'YYYY-MM-DD'
+    current_date = datetime.date.today().strftime("%Y-%m-%d")
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO water_entries (user_id, liquid_name, amount_ml, date) VALUES (?, ?, ?, ?)",
+                       (user_data[0], liquid_name, amount_ml, current_date))
+        conn.commit()
+
+    update_water_intake()
+
+def update_water_intake():
+    global user_data
+
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT SUM(amount_ml) FROM water_entries WHERE user_id=?", (user_data[0],))
+        total_water_ml = cursor.fetchone()
+
+    total_water_consumed = total_water_ml[0] if total_water_ml[0] else 0
+
+    # Update the water consumption information on the homepage
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Water Consumed: {total_water_consumed} mL")
+
+    # Update the water consumption information on the foodpage, if it exists
+    if foodpage:
+        food_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Water Consumed: {total_water_consumed} mL")
+
+    # Update the water consumption information on the waterpage, if it exists
+    if waterpage:
+        water_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Water Consumed: {total_water_consumed} mL")
+
+
+
 ########################################################################################################################
 
-# Login Function
 def login():
-    global user_entry, password_entry, user_data, user_id
+    global user_entry, password_entry, user_data
     written_username = user_entry.get()
     written_password = password_entry.get()
-
-    user_data = cursor.fetchone()
-    user_id = user_data[0]
 
     with get_database_connection() as conn:
         cursor = conn.cursor()
@@ -209,27 +221,133 @@ def login():
     else:
         messagebox.showwarning(title="Error", message="Invalid Username Or Password")
 
-        
-
 ####################################################################################################################################
 
+# HISTORY FUNCTION
 
+# Popluar tree for the history function
+
+def populate_tree(tree):
+    # Clear existing entries
+    tree.delete(*tree.get_children())
+
+    # Fetch historical data from the database and populate the tree view
+    with get_database_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT date, calories FROM food_entries WHERE user_id=?", (user_data[0],))
+        entries = cursor.fetchall()
+
+        for entry in entries:
+            date, calories = entry
+            cursor.execute("SELECT current_weight FROM users WHERE id=?", (user_data[0],))
+            current_weight = cursor.fetchone()[0]
+            tree.insert("", "end", values=(date, calories, current_weight))
+
+# Back button function for historypage to homepage
+def historyto_homepage():
+    global historypage, homepage
+    if historypage:
+        historypage.destroy()
+
+    if homepage:  # If homepage is hidden, show it again
+        homepage.deiconify()
+
+
+# History page
+def historypage_function():
+    global historypage, homepage, user_data
+
+    if homepage:
+        homepage.withdraw()
+
+    historypage = ctk.CTk()
+    historypage.geometry("800x450")
+    historypage.title('History Page')
+    historypage.maxsize(900, 600)
+    historypage.configure(fg_color="#232635")
+
+    # Back button to return to homepage
+    back_button = ctk.CTkButton(master=historypage, text="Back", command=historyto_homepage,
+                                corner_radius=6, fg_color="#f46b41", font=('Roboto', 12, 'bold'))
+    back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
+
+    # Create a TreeView widget
+    tree = ttk.Treeview(historypage, columns=("Date", "Calories", "Weight"), show="headings")
+    tree.heading("Date", text="Date")
+    tree.heading("Calories", text="Calories")
+    tree.heading("Weight", text="Weight")
+    
+    # Place the TreeView widget with padding and adjusted size
+    tree.place(relx=0.5, rely=0.45, anchor=tk.CENTER, relwidth=0.8, relheight=0.6)
+
+    # Define the column widths
+    tree.column("Date", width=150)
+    tree.column("Calories", width=150)
+    tree.column("Weight", width=150)
+
+    # Populate the tree view with historical data
+    populate_tree(tree)
+
+    historypage.mainloop()
+
+##########################################################################################################################
+
+# WATER FUNCTION
+
+# Back button function for foodpage to homepage
 def waterto_homepage():
     global waterpage, homepage
     if waterpage:
         waterpage.destroy()
 
+    # Update the calorie consumed label on the homepage
+    update_homepage_calories()
+
+    if homepage:  # If homepage is hidden, show it again
+        homepage.deiconify()
+    
 def waterpage_function():
-    global waterpage, homepage, user_data
+    global waterpage, homepage, homepage_info_label
 
     if homepage:
-        homepage.withdraw()
+        homepage.withdraw()  # Hide the homepage
 
     waterpage = ctk.CTk()
     waterpage.geometry("800x450")
-    waterpage.title('Water Page')
+    waterpage.title('Food Page')
     waterpage.maxsize(900, 600)
     waterpage.configure(fg_color="#232635")
+
+#-----------------------------------------------------------------------------------------------------
+
+    def save_water():
+        liquid_name = watername_entry.get()
+        amount_ml = amount_entry.get()
+
+        # Check if any required field is empty
+        if not liquid_name or not amount_ml:
+            messagebox.showerror("Error", "Please fill in all the required fields.")
+            return
+
+        # Check if amount_ml is a valid number
+        try:
+            amount_ml = float(amount_ml)
+        except ValueError:
+            messagebox.showerror("Error", "Amount must be a number.")
+            return
+
+        # Save the water entry to the database
+        save_water_entry(liquid_name, amount_ml)
+
+        # Clear the entry fields after saving
+        watername_entry.delete(0, tk.END)
+        amount_entry.delete(0, tk.END)
+
+        # Update the total water consumed on the homepage
+        update_water_intake()
+    
+#-----------------------------------------------------------------------------------------------------
+    
 
     # Main Frames  
 
@@ -254,12 +372,18 @@ def waterpage_function():
     
     # Label
 
-    watername_label = ctk.CTkLabel(master=entry_frame,text="Enter Name Of Food:")
+    watername_label = ctk.CTkLabel(master=entry_frame,text="Enter Name Of Liquid:")
     watername_label.place(relx=0.3, rely=0.15)
 
-
-    amount_label = ctk.CTkLabel(master=entry_frame,text="Enter Amount Of Calories")
+    amount_label = ctk.CTkLabel(master=entry_frame,text="Enter Amount (mL)")
     amount_label.place(relx=0.3, rely=0.35)
+
+    water_info_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
+    water_info_label.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
+
+    # Update the water consumption information when the water page is created
+    update_water_intake()
+
 
     # Entry
 
@@ -270,14 +394,15 @@ def waterpage_function():
     amount_entry.place(relx=0.75, rely=0.4, anchor=tk.CENTER)
 
     # Buttons
-
     enter_button = ctk.CTkButton(master=entry_frame, text="Enter",
-                                corner_radius=6, fg_color="#FFC300", font=('Roboto', 14, 'bold')
-                                )
+                                corner_radius=6, fg_color="#6d9eeb", font=('Roboto', 14, 'bold'))
     enter_button.place(relx=0.75, rely=0.8, anchor=tk.CENTER)
-    enter_button.configure(command=save_water_entry)
+
+    # Bind the save_water_entry function to the enter button's click event
+    enter_button.configure(command=save_water)
 
 #-----------------------------------------------------------------------------------------------------
+
 
 # Inside the waterinfo_frame
 
@@ -291,43 +416,15 @@ def waterpage_function():
                                 corner_radius=6, fg_color="#f46b41", font=('Roboto', 12, 'bold'))
     back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
 
-#-----------------------------------------------------------------------------------------------------
-    def save_water_entry():
-        try:
-            water_amount = float(amount_entry.get())  # get value from Entry widget
-        except ValueError:
-            # Handle non-numeric input (show an error message to the user)
-            messagebox.showerror("Error", "Please enter a valid water amount.")
-            return
-
-        with get_database_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO water_entries (user_id, water_amount, date) VALUES (?, ?, ?)", (user_data[0], water_amount, get_current_date()))
-            conn.commit()
-
-#-----------------------------------------------------------------------------------------------------
-
-    # Display the updated total calories in the homepage info_frame as well
-    total_calories = calculate_total_calories()
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
-
-#-----------------------------------------------------------------------------------------------------
-
 # Inside the info_frame
 
-    # Create a label to display calorie information in the info_frame
-    global food_info_label
-    foodinfo_frame = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
-    foodinfo_frame.place(relx=0.7, rely=0.5, anchor=tk.CENTER)
+    # Create a label to display the water consumption information on the waterpage
+    water_info_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
+    water_info_label.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
 
-    # Update the calorie information when the food page is created
-    total_calories = calculate_total_calories()
-    foodinfo_frame.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
-
-    # Update the info_label to refer to the global homepage_info_label
-    foodinfo_frame = homepage_info_label
-
-#-----------------------------------------------------------------------------------------------------
+    # Create a label to display the calorie information on the foodpage
+    food_info_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
+    food_info_label.place(relx=0.8, rely=0.5, anchor=tk.CENTER)
 
     # Create a label to display the date in the info_frame
     date_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 12), anchor=tk.W)
@@ -338,14 +435,16 @@ def waterpage_function():
     date_value_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 24), anchor=tk.W)
     date_value_label.place(relx=0.1, rely=0.4, anchor=tk.W)
 
+    # Update the water consumption information when the water page is created
+    update_water_intake()
+
+    waterpage.mainloop()
+
     # Update the date label with the current date
     current_date = get_current_date()
     date_value_label.configure(text=current_date)
 
-
     waterpage.mainloop()
-
-
 
 ####################################################################################################################################
 
@@ -433,7 +532,7 @@ def foodpage_function():
 
 
     # Displaying user's username
-    username_label = ctk.CTkLabel(master=info_frame, text=f"{user_data[1]}", font=("Roboto", 16))
+    username_label = ctk.CTkLabel(master=foodinfo_frame, text=f"{user_data[1]}", font=("Roboto", 16))
     username_label.place(relx=0.5, rely=0.1, anchor=tk.CENTER)
 
     # Back button to return to homepage
@@ -441,22 +540,19 @@ def foodpage_function():
                                 corner_radius=6, fg_color="#f46b41", font=('Roboto', 12, 'bold'))
     back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
 
-
     def save_entry():
-        global user_data, calorie_intake
-
         food_name = foodname_entry.get()
-        calories_str = calorie1_entry.get()
+        calories = calorie1_entry.get()
         serving = serving1_entry.get()
 
         # Check if any required field is empty
-        if not food_name or not calories_str or not serving:
+        if not food_name or not calories or not serving:
             messagebox.showerror("Error", "Please fill in all the required fields.")
             return
 
         # Check if calories is a valid number
         try:
-            calories = float(calories_str)
+            calories = float(calories)
         except ValueError:
             messagebox.showerror("Error", "Calories must be a number.")
             return
@@ -470,27 +566,15 @@ def foodpage_function():
         calorie1_entry.delete(0, tk.END)
         serving1_entry.delete(0, tk.END)
 
-        # Calculate remaining calories to the base goal
-        remaining_calories = calorie_intake - calculate_total_calories()
-
-        if remaining_calories <= 0:
-            messagebox.showinfo("Congratulations!", "You have completed your daily calorie goal!")
-
-        if remaining_calories <= -1000:
-            messagebox.showinfo("Warning", "You don't need to consume more calories than your goal for the day.")
-
-        # Update the homepage's calorie info and weight
+        # Update the total calories and weight if needed
         update_homepage_calories()
-
-    enter_button.configure(command=save_entry)
-
+        update_weight_if_needed()
 
 
 #-----------------------------------------------------------------------------------------------------
 
-    # Display the updated total calories in the homepage info_frame as well
-    total_calories = calculate_total_calories()
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
+        # Display the updated total calories in the homepage info_frame as well
+        homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
     enter_button.configure(command=save_entry)
 
@@ -505,7 +589,7 @@ def foodpage_function():
 
     # Update the calorie information when the food page is created
     total_calories = calculate_total_calories()
-    food_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
+    food_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
     # Update the info_label to refer to the global homepage_info_label
     food_info_label = homepage_info_label
@@ -524,75 +608,6 @@ def foodpage_function():
     date_value_label.configure(text=current_date)
 
     foodpage.mainloop()
-
-####################################################################################################################################
-
-# HISTORY FUNCTION
-
-# Popluar tree for the history function
-
-def populate_tree(tree):
-    # Clear existing entries
-    tree.delete(*tree.get_children())
-
-    # Fetch historical data from the database and populate the tree view
-    with get_database_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT date, calories FROM food_entries WHERE user_id=?", (user_data[0],))
-        entries = cursor.fetchall()
-
-        for entry in entries:
-            date, calories = entry
-            cursor.execute("SELECT current_weight FROM users WHERE id=?", (user_data[0],))
-            current_weight = cursor.fetchone()[0]
-            tree.insert("", "end", values=(date, calories, current_weight))
-
-# Back button function for historypage to homepage
-def historyto_homepage():
-    global historypage, homepage
-    if historypage:
-        historypage.destroy()
-
-    if homepage:  # If homepage is hidden, show it again
-        homepage.deiconify()
-
-
-# History page
-def historypage_function():
-    global historypage, homepage, user_data
-
-    if homepage:
-        homepage.withdraw()
-
-    historypage = ctk.CTk()
-    historypage.geometry("800x450")
-    historypage.title('History Page')
-    historypage.maxsize(900, 600)
-    historypage.configure(fg_color="#232635")
-
-    # Back button to return to homepage
-    back_button = ctk.CTkButton(master=historypage, text="Back", command=historyto_homepage,
-                                corner_radius=6, fg_color="#f46b41", font=('Roboto', 12, 'bold'))
-    back_button.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
-
-    # Create a TreeView widget
-    tree = ttk.Treeview(historypage, columns=("Date", "Calories", "Weight"), show="headings")
-    tree.heading("Date", text="Date")
-    tree.heading("Calories", text="Calories")
-    tree.heading("Weight", text="Weight")
-    
-    # Place the TreeView widget with padding and adjusted size
-    tree.place(relx=0.5, rely=0.45, anchor=tk.CENTER, relwidth=0.8, relheight=0.6)
-
-    # Define the column widths
-    tree.column("Date", width=150)
-    tree.column("Calories", width=150)
-    tree.column("Weight", width=150)
-
-    # Populate the tree view with historical data
-    populate_tree(tree)
-
-    historypage.mainloop()
 
 ####################################################################################################################################
 
@@ -646,25 +661,20 @@ def homepage_function():
 
     # Inside info_frame
 
-    # In the homepage_function() add the following lines before entering the mainloop to update the homepage info_label
     homepage_info_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 14), anchor=tk.W)
     homepage_info_label.place(relx=0.8, rely=0.3, anchor=tk.CENTER)
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: 0 calories\nWater Consumed: 0 mL") 
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: 0 calories\nTotal Water Consumed: 0 mL")
+
+    # Update the total water consumed on the homepage
+    update_water_intake()
 
     # Update the calorie information when the home page is created
     total_calories = calculate_total_calories()
-    total_water = calculate_total_water()
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
-
-    # Add these lines in the homepage_function():
-    total_water = calculate_total_water()
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
     # Calculate the recommended calorie intake based on the user's weight and weight goal
     calorie_intake = calculate_calorie_intake(user_data[5], user_data[4])
-    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories\nWater Consumed: {total_water} mL")
-
-    
+    homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
 
     # Create a label to display the date in the info_frame
     date_label = ctk.CTkLabel(master=info_frame, font=("Roboto", 12), anchor=tk.CENTER)
@@ -698,7 +708,7 @@ def homepage_function():
     food_button = ctk.CTkButton(master= entry_frame, text="FOOD",font=("Roboto", 24, "bold"), command=foodpage_function, fg_color="#f1c232", width=210, height=50)
     food_button.place(relx=0.25,rely=0.5,anchor="center")
 
-    water_button = ctk.CTkButton(master= entry_frame, text="WATER",font=("Roboto", 24, "bold"), fg_color="#6d9eeb", command=waterpage_function, width=210, height=50)
+    water_button = ctk.CTkButton(master= entry_frame, text="WATER",font=("Roboto", 24, "bold"), command=waterpage_function, fg_color="#6d9eeb", width=210, height=50)
     water_button.place(relx=0.25,rely=0.8,anchor="center")
 
     cardiovascular_button = ctk.CTkButton(master= entry_frame, text="CARDIOVASCULAR", font=("Roboto", 24, "bold"), fg_color="#6aa84f", width=210, height=50)
@@ -819,8 +829,7 @@ def signup_function():
 
         # Check if current weight is a valid number
         try:
-            current_weight = float(current_weight_entry.get().strip())
-
+            current_weight = float(current_weight)
         except ValueError:
             messagebox.showerror("Error", "Current weight must be a number.")
             return
@@ -839,9 +848,6 @@ def signup_function():
         if existing_user:
             messagebox.showerror("Error", "Username already exists. Please choose a different username.")
             return
-
-        # Calculate the recommended calorie intake based on the weight goal and current weight
-        calorie_intake = calculate_calorie_intake(weight_goal, current_weight)
 
         # Insert the new user into the database
         with get_database_connection() as conn:
@@ -873,7 +879,7 @@ def validate_age_input(char):
     return char.isdigit() or char == ""
 
 def validate_current_weight_input(char):
-    return char.isdigit() or char == "." or (char == "-" and len(char) == 1)
+    return char.isdigit() or char == "." or char == ""
 
 #-----------------------------------------------------------------------------------------------------
 
