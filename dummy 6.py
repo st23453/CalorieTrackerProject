@@ -1,4 +1,4 @@
-# working on boundry test for food function
+# working, only has calorie and history function
 
 import tkinter as tk
 from tkinter import ttk
@@ -7,6 +7,7 @@ from tkinter.ttk import Combobox
 import customtkinter as ctk
 import sqlite3
 import datetime
+from customtkinter import CTk, CTkButton, CTkLabel, CTkEntry, CTkImageButton
 
 # Set customtkinter appearance mode and color theme
 ctk.set_appearance_mode("system")  # Set light or dark mode
@@ -23,7 +24,7 @@ def get_current_date():
 
 # Create the database connection function
 def get_database_connection():
-    return sqlite3.connect('database3.db')
+    return sqlite3.connect('panda.db')
 
 # Create or connect to the SQLite3 database
 with get_database_connection() as conn:
@@ -154,6 +155,7 @@ def save_food_entry(food_name, calories, serving):
 
     update_calories()
 
+
 ########################################################################################################################
 
 # Login Function
@@ -283,6 +285,11 @@ def foodpage_function():
             messagebox.showerror("Error", "Calories must be a number.")
             return
 
+        # Check if user has reached their daily calorie intake goal
+        if total_calories >= calorie_intake:
+            messagebox.showinfo("Goal Reached", "You have reached your daily calorie intake goal. No need to consume more.")
+            return
+
         # Save the food entry to the database
         save_food_entry(food_name, calories, serving)
         update_calories()
@@ -296,6 +303,12 @@ def foodpage_function():
         update_homepage_calories()
         update_weight_if_needed()
 
+        # Display the updated total calories in the homepage info_frame as well
+        homepage_info_label.configure(text=f"Base Goal: {calorie_intake} calories\nTotal Calories: {total_calories} calories")
+
+        # Check if user has reached their daily calorie intake goal again
+        if total_calories >= calorie_intake:
+            messagebox.showinfo("Goal Reached", "You have reached your daily calorie intake goal. No need to consume more.")
 
 #-----------------------------------------------------------------------------------------------------
 
@@ -490,26 +503,10 @@ def homescreen_function():
     select_label = ctk.CTkLabel(master = entry_frame, text="SELECT WHAT TO ENTER",font=("Roboto", 24, "bold"))
     select_label.place(relx=0.5,rely=0.15,anchor="center")
 
-    consumed_label = ctk.CTkLabel(master = entry_frame, text="CONSUMED",font=("Roboto", 18, "bold") )
-    consumed_label.place(relx=0.25,rely=0.3,anchor="center")
-    
-    burned_label = ctk.CTkLabel(master = entry_frame, text="BURNED", font=("Roboto", 18, "bold"))
-    burned_label.place(relx=0.75,rely=0.3,anchor="center")
-
     # button
 
-    food_button = ctk.CTkButton(master= entry_frame, text="FOOD",font=("Roboto", 24, "bold"), command=foodpage_function, fg_color="#f1c232", width=210, height=50)
-    food_button.place(relx=0.25,rely=0.5,anchor="center")
-
-    water_button = ctk.CTkButton(master= entry_frame, text="WATER",font=("Roboto", 24, "bold"), fg_color="#6d9eeb", width=210, height=50)
-    water_button.place(relx=0.25,rely=0.8,anchor="center")
-
-    cardiovascular_button = ctk.CTkButton(master= entry_frame, text="CARDIOVASCULAR", font=("Roboto", 24, "bold"), fg_color="#6aa84f", width=210, height=50)
-    cardiovascular_button.place(relx=0.75,rely=0.5,anchor="center")
-
-    strength_button = ctk.CTkButton(master= entry_frame, text="STRENGTH TRAINING", font=("Roboto", 24, "bold"), fg_color="#cc0000", width=200, height=50)
-    strength_button.place(relx=0.75,rely=0.8,anchor="center")
-
+    food_button = ctk.CTkButton(master= entry_frame, text="FOOD",font=("Roboto", 64, "bold"), command=foodpage_function, fg_color="#f1c232", width=500, height=100)
+    food_button.place(relx=0.5,rely=0.5,anchor="center")
 
     # Inside user_frame
 
@@ -528,17 +525,6 @@ def homescreen_function():
     history_button = ctk.CTkButton(master=user_frame, text="HISTORY", command=historypage_function,
                                   corner_radius=6, fg_color="#282434", font=('Roboto', 24, 'bold'), width=160, height=60)
     history_button.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-
-    # Food Diary button
-    diary_button = ctk.CTkButton(master=user_frame, text="FOOD DIARY",
-                                  corner_radius=6, fg_color="#282434", font=('Roboto', 24, 'bold'), width=160, height=60)
-    diary_button.place(relx=0.5, rely=0.3, anchor=tk.CENTER)
-
-    # Workout Plan button
-    workout_button = ctk.CTkButton(master=user_frame, text="WORKOUT PLAN",
-                                  corner_radius=6, fg_color="#282434", font=('Roboto', 24, 'bold'), width=160, height=60)
-    workout_button.place(relx=0.5, rely=0.8, anchor=tk.CENTER)
-
 
     homepage.mainloop()
 
@@ -578,6 +564,26 @@ def signup_function():
     password_label.place(relx=0.3, rely=0.4, anchor=tk.CENTER)
     password_entry = ctk.CTkEntry(master=signup, width=220, height=35, font=('Roboto', 14), fg_color="#e0dcdc", text_color="black")
     password_entry.place(relx=0.6, rely=0.4, anchor=tk.CENTER)
+    password_entry.show_password = True  # Add an attribute to track password visibility
+
+    def toggle_password_visibility():
+        if password_entry.show_password:
+            password_entry.show_password = False
+            password_entry.configure(show="*")  # Hide password characters
+            show_password_button.configure(image=hide_password_image)  # Change button image to "Hide"
+        else:
+            password_entry.show_password = True
+            password_entry.configure(show="")   # Show password characters as plain text
+            show_password_button.configure(image=show_password_image)  # Change button image to "Show"
+
+    # Load the images for the button
+    show_password_image = ctk.CTkImage(file="show_icon.png")
+    hide_password_image = ctk.CTkImage(file="hide_icon.png")
+
+    # Create the image button with the initial "Show" image
+    show_password_button = ctk.CTkImageButton(master=signup, image=show_password_image, command=toggle_password_visibility,
+                                            corner_radius=6, fg_color="#3498db")
+    show_password_button.place(relx=0.75, rely=0.4, anchor=tk.CENTER)
 
     age_label = ctk.CTkLabel(master=signup, text="Age:", font=('Roboto', 14))
     age_label.place(relx=0.3, rely=0.5, anchor=tk.CENTER)
